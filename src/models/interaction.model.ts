@@ -19,7 +19,7 @@ export class Interaction {
   @Prop({ type: Types.ObjectId, ref: 'Course', required: true, index: true })
   courseId: Types.ObjectId
 
-  @Prop({ required: true, enum: InteractionType, index: true })
+  @Prop({ type: String, required: true, enum: Object.values(InteractionType), index: true })
   type: InteractionType
 
   @Prop({ type: Types.ObjectId })

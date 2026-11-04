@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
 import { AdminGuard } from '../auth/admin.guard.js'
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js'
 import { CreateTopicDto } from '../dto/topic.dto.js'
-import { AuthenticatedRequest } from '../auth/authenticated-request.js'
+import { type AuthenticatedRequest } from '../auth/authenticated-request.js'
 import { CourseService } from '../services/course.service.js'
 
 @ApiTags('topics')

@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Patch, Req, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
-import { AuthenticatedRequest } from '../auth/authenticated-request.js'
+import { type AuthenticatedRequest } from '../auth/authenticated-request.js'
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js'
 import { UpdateProfileDto } from '../dto/profile.dto.js'
 import { ProfileService } from '../services/profile.service.js'

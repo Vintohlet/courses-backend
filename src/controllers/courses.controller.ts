@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
-import { AuthenticatedRequest } from '../auth/authenticated-request.js'
+import  { type AuthenticatedRequest } from '../auth/authenticated-request.js'
 import { ParseObjectIdPipe } from '../common/parse-object-id.pipe.js'
 import { AdminGuard } from '../auth/admin.guard.js'
 import { JwtAuthGuard } from '../auth/jwt-auth.guard.js'

@@ -16,7 +16,7 @@ export class Enrollment {
   @Prop({ type: Types.ObjectId, ref: 'Course', required: true })
   courseId: Types.ObjectId
 
-  @Prop({ required: true, enum: EnrollmentStatus, default: EnrollmentStatus.Active })
+  @Prop({ type: String, required: true, enum: Object.values(EnrollmentStatus), default: EnrollmentStatus.Active })
   status: EnrollmentStatus
 
   @Prop({ type: [Types.ObjectId], default: [] })

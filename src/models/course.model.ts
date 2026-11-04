@@ -40,7 +40,7 @@ export class Course {
   @Prop({ type: [String], default: [], index: true })
   tags: string[]
 
-  @Prop({ required: true, enum: CourseLevel, default: CourseLevel.Beginner, index: true })
+  @Prop({ type: String, required: true, enum: Object.values(CourseLevel), default: CourseLevel.Beginner, index: true })
   level: CourseLevel
 
   @Prop({ type: [LessonSchema], default: [] })
