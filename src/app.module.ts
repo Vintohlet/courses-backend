@@ -15,6 +15,9 @@ import { LearningService } from './services/learning.service.js'
 import { ReviewService } from './services/review.service.js'
 import { RecommendationService } from './services/recommendation.service.js'
 import { JwtModule } from '@nestjs/jwt'
+import { JwtAuthGuard } from './auth/jwt-auth.guard.js'
+import { OptionalJwtAuthGuard } from './auth/optional-jwt-auth.guard.js'
+import { AdminGuard } from './auth/admin.guard.js'
 
 @Module({
   imports: [
@@ -42,6 +45,6 @@ import { JwtModule } from '@nestjs/jwt'
     ]),
   ],
   controllers: [AppController],
-  providers: [AuthService, ProfileService, CourseService, LearningService, ReviewService, RecommendationService],
+  providers: [AuthService, ProfileService, CourseService, LearningService, ReviewService, RecommendationService, JwtAuthGuard, OptionalJwtAuthGuard, AdminGuard],
 })
 export class AppModule {}

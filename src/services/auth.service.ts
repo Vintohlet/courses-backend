@@ -45,7 +45,7 @@ export class AuthService {
   }
 
   private normalizeEmail(email: string) { return email.trim().toLowerCase() }
-  private async issueToken(user: UserDocument) { return this.jwt.signAsync({ sub: user.id, isAdmin: user.isAdmin }) }
+  private async issueToken(user: UserDocument) { return this.jwt.signAsync({ sub: user.id }) }
   private publicUser(user: UserDocument) {
     return { id: user.id, name: user.name, email: user.email, interests: user.interests, isAdmin: user.isAdmin }
   }
