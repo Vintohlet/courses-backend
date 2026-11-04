@@ -16,6 +16,9 @@ export class User {
 
   @Prop({ type: [String], default: [] })
   interests: string[]
+
+  @Prop({ default: false, index: true })
+  isAdmin: boolean
 }
 
 export const UserSchema = SchemaFactory.createForClass(User)

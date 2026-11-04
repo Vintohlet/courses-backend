@@ -54,6 +54,9 @@ export class Course {
 
   @Prop({ default: 0, min: 0 })
   ratingCount: number
+
+  @Prop({ default: true, index: true })
+  isActive: boolean
 }
 
 export const CourseSchema = SchemaFactory.createForClass(Course)
