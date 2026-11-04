@@ -50,9 +50,13 @@ export class CourseService {
     return { items: enriched, pagination: { page, limit, total, pages: Math.ceil(total / limit) } }
   }
 
-  async getPublic(courseId: string) {
+  async getPublic(courseId: string, userId?: string) {
     const course = await this.courses.findOne({ _id: courseId, isActive: true }).select('-fullDescription -lessons').lean()
     if (!course) throw new NotFoundException('Course not found')
+    if (userId) {
+      const enrollment: any = await this.enrollments.findOne({ courseId, userId }).select('completedLessons').lean()
+      return { ...course, isEnrolled: Boolean(enrollment), progress: enrollment ? this.progress(enrollment.completedLessons, (await this.courses.findById(courseId).select('lessons').lean())?.lessons.length ?? 0) : 0 }
+    }
     return course
   }
 

@@ -18,6 +18,10 @@ import { JwtModule } from '@nestjs/jwt'
 import { JwtAuthGuard } from './auth/jwt-auth.guard.js'
 import { OptionalJwtAuthGuard } from './auth/optional-jwt-auth.guard.js'
 import { AdminGuard } from './auth/admin.guard.js'
+import { AuthController } from './controllers/auth.controller.js'
+import { ProfileController } from './controllers/profile.controller.js'
+import { CoursesController } from './controllers/courses.controller.js'
+import { TopicsController } from './controllers/topics.controller.js'
 
 @Module({
   imports: [
@@ -44,7 +48,7 @@ import { AdminGuard } from './auth/admin.guard.js'
       { name: Review.name, schema: ReviewSchema },
     ]),
   ],
-  controllers: [AppController],
+  controllers: [AppController, AuthController, ProfileController, CoursesController, TopicsController],
   providers: [AuthService, ProfileService, CourseService, LearningService, ReviewService, RecommendationService, JwtAuthGuard, OptionalJwtAuthGuard, AdminGuard],
 })
 export class AppModule {}

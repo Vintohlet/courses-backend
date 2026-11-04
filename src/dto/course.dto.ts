@@ -48,7 +48,10 @@ export class CreateCourseDto {
   @ArrayUnique()
   @IsString({ each: true })
   @Matches(TOPIC_SLUG, { each: true })
-  @Transform(({ value }) => Array.isArray(value) ? value.map((item) => typeof item === 'string' ? item.trim().toLowerCase() : item) : value)
+  @Transform(({ value }) => {
+    const values = Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : value
+    return Array.isArray(values) ? values.map((item) => typeof item === 'string' ? item.trim().toLowerCase() : item) : values
+  })
   tags?: string[]
 
   @IsOptional()
@@ -81,7 +84,10 @@ export class CourseQueryDto {
   @ArrayUnique()
   @IsString({ each: true })
   @Matches(TOPIC_SLUG, { each: true })
-  @Transform(({ value }) => Array.isArray(value) ? value.map((item) => typeof item === 'string' ? item.trim().toLowerCase() : item) : value)
+  @Transform(({ value }) => {
+    const values = Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : value
+    return Array.isArray(values) ? values.map((item) => typeof item === 'string' ? item.trim().toLowerCase() : item) : values
+  })
   tags?: string[]
 
   @IsOptional()
