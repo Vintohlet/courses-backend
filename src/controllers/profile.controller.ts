@@ -20,3 +20,5 @@ export class ProfileController {
     return this.profiles.updateProfile(request.user!.id, body)
   }
 }
+
+//AdminPassword1!

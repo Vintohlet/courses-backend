@@ -1,114 +1,145 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Courses Platform Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Backend for a MongoDB-based online learning platform. It provides account authentication, course catalog search, enrollment and progress tracking, reviews, and course recommendations.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Stack
 
-## Description
+- Node.js 20.6 or newer
+- NestJS and TypeScript
+- MongoDB with Mongoose
+- JWT authentication and bcrypt password hashing
+- Swagger/OpenAPI documentation
+- Vitest for automated tests
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Requirements
 
-## Project setup
+- Node.js 20.6+
+- npm
+- A running MongoDB instance, local or hosted
+
+## Setup
+
+Install dependencies:
 
 ```bash
-$ npm install
+npm install
 ```
 
-## Compile and run the project
+Create a `.env` file in the project root:
+
+```env
+PORT=3000
+MONGO_URI=mongodb://127.0.0.1:27017/courses_platform
+JWT_SECRET=replace-with-a-long-random-secret
+FRONTEND_URL=http://localhost:5173
+```
+
+Keep `.env` private and do not commit it. Start MongoDB before starting the API.
+
+## Seed demonstration data
+
+Run:
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm run seed
 ```
 
-## Run tests
+The command builds the project and inserts demonstration topics, courses with lessons, users, enrollments, reviews, and interaction events. It uses upserts, so running it again updates the same demo records instead of creating copies.
+
+All seeded users use this password:
+
+```text
+DemoPass123!
+```
+
+Example account: `john.doe@example.com`. Seeded accounts are students. To test administrator-only course and topic management, set `isAdmin` to `true` for a user in MongoDB Compass. The public registration and profile endpoints do not allow users to change this field.
+
+## Run the API
+
+Development mode with automatic rebuild:
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm run start:dev
 ```
 
-## Deployment
+The API uses the `/api` prefix. Swagger UI is available at:
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+```text
+http://localhost:3000/docs
+```
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Health check:
+
+```text
+GET http://localhost:3000/api/health
+```
+
+Production build and start:
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm run build
+npm run start:prod
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## Main API routes
 
-## Observability
+| Method | Route | Access | Purpose |
+|---|---|---|---|
+| `POST` | `/api/auth/register` | Public | Register a user |
+| `POST` | `/api/auth/login` | Public | Authenticate and receive a JWT |
+| `GET` | `/api/users/me` | JWT | Read the current profile and course progress |
+| `PATCH` | `/api/users/me` | JWT | Update name, email, or interests |
+| `GET` | `/api/topics` | Public | List available interest and category topics |
+| `POST` | `/api/topics` | Admin | Add a topic |
+| `GET` | `/api/courses` | Public, optional JWT | Search, filter, sort, and paginate courses |
+| `GET` | `/api/courses/:id` | Public, optional JWT | Read the public course summary |
+| `POST` | `/api/courses` | Admin | Create a course |
+| `PATCH` | `/api/courses/:id` | Admin | Update a course |
+| `DELETE` | `/api/courses/:id` | Admin | Deactivate a course while preserving history |
+| `GET` | `/api/courses/:id/content` | JWT + enrollment | Read full description and lessons |
+| `POST` | `/api/courses/:id/enroll` | JWT | Enroll in a course |
+| `POST` | `/api/courses/:id/lessons/:lessonId/complete` | JWT + enrollment | Complete a lesson and update progress |
+| `GET` | `/api/courses/:id/participants` | Public | List students currently taking the course |
+| `GET` | `/api/courses/:id/reviews` | Public | List course reviews |
+| `POST` | `/api/courses/:id/rating` | JWT + completed course | Create or update a rating and review |
+| `GET` | `/api/courses/:id/similar` | Public | Recommend similar courses |
+| `GET` | `/api/courses/recommendations` | Public, optional JWT | Return personalized or popular courses |
 
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
+Protected endpoints expect an `Authorization: Bearer <token>` header. Swagger's **Authorize** button can apply the token to requests.
 
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
+## Data model
 
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
+- `users`: profile, unique normalized email, password hash, topic interests, and administrator flag.
+- `topics`: controlled topic slugs and display names used by user interests and course categories.
+- `courses`: descriptions, category, tags, level, embedded lesson documents, and denormalized enrollment and rating aggregates.
+- `enrollments`: current user/course enrollment and completed lesson IDs. A unique compound index prevents duplicate enrollments.
+- `reviews`: one current review per user/course, stored separately from the course document.
+- `interactions`: event history for views, enrollment, lesson completion, course completion, and ratings.
 
-## Resources
+## Search and recommendations
 
-Check out a few resources that may come in handy when working with NestJS:
+The course catalog supports text matching on title and short description, filters for category, tags, and level, sorting, and pagination. Similar-course recommendations use category and tag overlap. Personalized recommendations compare course topics with the authenticated user's interests. Both use course rating and logarithmic enrollment count as ranking signals. Guests receive popular courses.
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observer](https://observer.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## Tests and checks
 
-## Support
+Run the automated suite:
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```bash
+npm test
+```
 
-## Stay in touch
+Build the application:
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```bash
+npm run build
+```
 
-## License
+## Existing database migration
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Earlier application builds may have stored `userId`, `courseId`, or `lessonId` references as strings. The migration converts valid 24-character hexadecimal references to BSON `ObjectId` values and recalculates course rating aggregates:
+
+```bash
+npm run migrate:refs
+```
+
+This migration is intended for an existing database created by the earlier schema. It is not needed for a fresh database or after the references have already been migrated.

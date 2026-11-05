@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
-import { HydratedDocument, Types } from 'mongoose'
+import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose'
 
 export type InteractionDocument = HydratedDocument<Interaction>
 
@@ -13,16 +13,16 @@ export enum InteractionType {
 
 @Schema({ timestamps: { createdAt: true, updatedAt: false }, versionKey: false })
 export class Interaction {
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User', required: true, index: true })
   userId: Types.ObjectId
 
-  @Prop({ type: Types.ObjectId, ref: 'Course', required: true, index: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Course', required: true, index: true })
   courseId: Types.ObjectId
 
   @Prop({ type: String, required: true, enum: Object.values(InteractionType), index: true })
   type: InteractionType
 
-  @Prop({ type: Types.ObjectId })
+  @Prop({ type: MongooseSchema.Types.ObjectId })
   lessonId?: Types.ObjectId
 
   @Prop({ min: 1, max: 5 })

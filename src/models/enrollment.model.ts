@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose'
-import { HydratedDocument, Types } from 'mongoose'
+import { HydratedDocument, Schema as MongooseSchema, Types } from 'mongoose'
 
 export type EnrollmentDocument = HydratedDocument<Enrollment>
 
@@ -10,16 +10,16 @@ export enum EnrollmentStatus {
 
 @Schema({ timestamps: true, versionKey: false })
 export class Enrollment {
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User', required: true })
   userId: Types.ObjectId
 
-  @Prop({ type: Types.ObjectId, ref: 'Course', required: true })
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Course', required: true })
   courseId: Types.ObjectId
 
   @Prop({ type: String, required: true, enum: Object.values(EnrollmentStatus), default: EnrollmentStatus.Active })
   status: EnrollmentStatus
 
-  @Prop({ type: [Types.ObjectId], default: [] })
+  @Prop({ type: [MongooseSchema.Types.ObjectId], default: [] })
   completedLessons: Types.ObjectId[]
 
   @Prop({ default: Date.now })

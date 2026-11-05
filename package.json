@@ -9,6 +9,7 @@
   "scripts": {
     "build": "nest build",
     "seed": "npm run build && node --env-file=.env dist/seed.js",
+    "migrate:refs": "npm run build && node --env-file=.env dist/migrations/normalize-reference-ids.js --apply",
     "deploy": "nest deploy",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
