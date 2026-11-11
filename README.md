@@ -103,7 +103,7 @@ npm run start:prod
 | `GET` | `/api/courses/:id/reviews` | Public | List course reviews |
 | `POST` | `/api/courses/:id/rating` | JWT + completed course | Create or update a rating and review |
 | `GET` | `/api/courses/:id/similar` | Public | Recommend similar courses |
-| `GET` | `/api/courses/recommendations` | Public, optional JWT | Return personalized or popular courses |
+| `GET` | `/api/courses/recommendations?limit=6` | Public, optional JWT | Return collaborative, interest-based, or popular courses with recommendation metadata |
 
 Protected endpoints expect an `Authorization: Bearer <token>` header. Swagger's **Authorize** button can apply the token to requests.
 
@@ -118,7 +118,11 @@ Protected endpoints expect an `Authorization: Bearer <token>` header. Swagger's 
 
 ## Search and recommendations
 
-The course catalog supports text matching on title and short description, filters for category, tags, and level, sorting, and pagination. Similar-course recommendations use category and tag overlap. Personalized recommendations compare course topics with the authenticated user's interests. Both use course rating and logarithmic enrollment count as ranking signals. Guests receive popular courses.
+The course catalog supports text matching on title and short description, filters for category, tags, and level, sorting, and pagination. Similar-course recommendations use category and tag overlap.
+
+Personalized recommendations use item-based collaborative filtering when an authenticated user has enrollment history. For each course the user is taking or has completed, the service finds other users enrolled in that course and scores their other courses as candidates. Completed enrollments have a higher weight than active enrollments. Courses the current user is already taking or has completed are excluded. The response remains an array of course objects and adds a `recommendation` object containing the strategy, score, explanation, and the source course for collaborative results. `limit` is optional and ranges from 1 to 20.
+
+When collaborative history is unavailable or produces no candidates, users with interests receive content-based results ranked by topic overlap, course rating, and enrollment count. If that also produces no results, the API returns popular courses. Guests receive popular courses. These fallbacks handle the cold-start problem.
 
 ## Tests and checks
 
