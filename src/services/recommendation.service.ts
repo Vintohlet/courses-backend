@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
-import { Model, Types } from 'mongoose'
+import { Model, PipelineStage, Types } from 'mongoose'
 import { Course, CourseDocument } from '../models/course.model.js'
 import { Enrollment, EnrollmentDocument, EnrollmentStatus } from '../models/enrollment.model.js'
 import { User, UserDocument } from '../models/user.model.js'
@@ -55,8 +55,23 @@ export class RecommendationService {
     return this.popular(limit, seenCourseIds.length ? 'popular_fallback' : 'popular')
   }
 
+  async explainCollaborativeForUser(userId: string) {
+    const userObjectId = new Types.ObjectId(userId)
+    const seenCourseIds = await this.enrollments
+      .find({ userId: userObjectId, status: { $in: ACTIVE_STATUSES } })
+      .distinct('courseId')
+    if (!seenCourseIds.length) throw new Error('The selected user has no active or completed enrollments to explain.')
+    return this.enrollments
+      .aggregate(this.collaborativePipeline(userObjectId, seenCourseIds, 6))
+      .explain('executionStats')
+  }
+
   private async collaborativeForUser(userId: Types.ObjectId, seenCourseIds: Types.ObjectId[], limit: number) {
-    return this.enrollments.aggregate([
+    return this.enrollments.aggregate(this.collaborativePipeline(userId, seenCourseIds, limit))
+  }
+
+  private collaborativePipeline(userId: Types.ObjectId, seenCourseIds: Types.ObjectId[], limit: number): PipelineStage[] {
+    return [
       { $match: { userId, status: { $in: ACTIVE_STATUSES } } },
       {
         $set: {
@@ -86,9 +101,20 @@ export class RecommendationService {
       },
       { $unwind: '$neighbors' },
       {
+        $group: {
+          _id: '$neighbors.userId',
+          seedCourses: {
+            $addToSet: {
+              courseId: '$courseId',
+              weight: '$seedWeight',
+            },
+          },
+        },
+      },
+      {
         $lookup: {
           from: this.enrollments.collection.name,
-          let: { neighborUserId: '$neighbors.userId' },
+          let: { neighborUserId: '$_id' },
           pipeline: [
             {
               $match: {
@@ -103,11 +129,12 @@ export class RecommendationService {
         },
       },
       { $unwind: '$neighborCourses' },
+      { $unwind: '$seedCourses' },
       {
         $set: {
           contribution: {
             $multiply: [
-              '$seedWeight',
+              '$seedCourses.weight',
               { $cond: [{ $eq: ['$neighborCourses.status', EnrollmentStatus.Completed] }, COMPLETED_WEIGHT, 1] },
             ],
           },
@@ -115,7 +142,7 @@ export class RecommendationService {
       },
       {
         $group: {
-          _id: { candidateCourseId: '$neighborCourses.courseId', seedCourseId: '$courseId' },
+          _id: { candidateCourseId: '$neighborCourses.courseId', seedCourseId: '$seedCourses.courseId' },
           score: { $sum: '$contribution' },
         },
       },
@@ -169,7 +196,7 @@ export class RecommendationService {
           },
         },
       },
-    ])
+    ]
   }
 
   private async contentBasedForUser(interests: string[], seenCourseIds: Types.ObjectId[], limit: number) {

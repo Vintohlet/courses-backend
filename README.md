@@ -138,6 +138,68 @@ Build the application:
 npm run build
 ```
 
+## Recommendation performance measurements
+
+Performance data is isolated in the `courses_perf` database. The performance seed never drops a database: it removes only documents tagged with its own `_perfSeed` marker, then writes a deterministic synthetic dataset and ensures the application model indexes exist.
+
+Copy `.env.perf.example` to `.env.perf`. Keep the performance API on port `3001` so it can run beside the regular development API. The seed reads `MONGO_URI` from `.env` and explicitly selects the `courses_perf` database, regardless of the database name in that URI. Ensure MongoDB is running before seeding.
+
+Create the small dataset first:
+
+```bash
+npm run perf:seed -- --scale=small
+```
+
+Available default scales are:
+
+| Scale | Users | Courses | Target enrollments per user |
+|---|---:|---:|---:|
+| `small` | 100 | 40 | 6 |
+| `medium` | 1,000 | 200 | 10 |
+| `large` | 5,000 | 500 | 20 |
+
+Custom sizes can be generated with `--users`, `--courses`, and `--enrollments-per-user`, for example:
+
+```bash
+npm run perf:seed -- --users=2000 --courses=300 --enrollments-per-user=12 --seed=20261111
+```
+
+Each run replaces only the seed's tagged documents, so moving from a large scale back to a small scale removes the old performance dataset. The generated users share a known test password: `PerfPass123!`. For example, `perf.user.000001@example.com` is used by the benchmark runner.
+
+Build and start a separate API instance using `.env.perf`:
+
+```bash
+npm run build
+npm run perf:start
+```
+
+Run the authenticated recommendation benchmark from another terminal:
+
+```bash
+npm run perf:benchmark -- --base-url=http://localhost:3001/api --dataset=small --requests=100 --warmup=10 --concurrency=1,5,10 --limit=6 --out=.tmp/perf-results.csv
+```
+
+The runner logs per-concurrency p50, p95, maximum latency, throughput, and errors, then appends the measurements to a CSV file. Repeat the seed and benchmark for each scale. For fair comparisons, use the same machine, API settings, request count, concurrency levels, and warm-up procedure. Record the Node.js and MongoDB versions and whether the API and database run on the same machine.
+
+To get `executionStats` for the exact collaborative aggregation used by the recommendation service, run:
+
+```bash
+npm run perf:explain -- --email=perf.user.000001@example.com --out=.tmp/large-explain.json
+```
+
+This command loads `.env.perf`, selects that user's enrollment history, runs the same aggregation pipeline with MongoDB's `explain("executionStats")`, prints a lookup summary, and saves the complete explain document as JSON. Run it after seeding the selected scale; change the output filename for each scale so earlier plans are preserved. The benchmark API does not need to be running for this command.
+
+### How to evaluate and optimize
+
+1. Record a baseline at each dataset size before changing indexes or the aggregation.
+2. Inspect the saved explain JSON and check the `enrollments` indexes in MongoDB Compass. The important access patterns are: finding the current user's enrollments, finding users enrolled in each seed course, and finding those users' other courses.
+3. Compare `totalKeysExamined`, `totalDocsExamined`, execution time, and whether the stages use indexes or scan whole collections. The existing enrollment indexes cover user-to-course and course-to-user lookups; add or change an index only when explain results show a useful improvement.
+4. The collaborative pipeline groups matching neighbor users before looking up their other courses. This avoids repeating the second enrollment lookup when the same user appears as a neighbor for several of the current user's courses. Compare its `neighborCourses` lookup statistics with the saved baseline.
+5. Change one thing at a time, rerun the same workload, and compare the CSV results. Report p50 and p95 alongside database execution statistics, because HTTP timing also includes application and network overhead.
+6. If the aggregation remains expensive at larger scales, evaluate precomputed item-to-item course similarities. This trades fresher results and extra write/refresh work for faster recommendation reads. Use measurements to justify whether that added complexity is needed.
+
+Do not use the performance seed against a production database. It selects `courses_perf` and writes only tagged synthetic documents, but the performance account password is intentionally public for local demonstrations.
+
 ## Existing database migration
 
 Earlier application builds may have stored `userId`, `courseId`, or `lessonId` references as strings. The migration converts valid 24-character hexadecimal references to BSON `ObjectId` values and recalculates course rating aggregates:

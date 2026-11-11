@@ -9,6 +9,10 @@
   "scripts": {
     "build": "nest build",
     "seed": "npm run build && node --env-file=.env dist/seed.js",
+    "perf:seed": "npm run build && node --env-file=.env dist/perf/seed-perf.js",
+    "perf:start": "node --env-file=.env.perf dist/main.js",
+    "perf:benchmark": "node scripts/perf-benchmark.mjs",
+    "perf:explain": "npm run build && node --env-file=.env.perf scripts/perf-explain.mjs",
     "migrate:refs": "npm run build && node --env-file=.env dist/migrations/normalize-reference-ids.js --apply",
     "deploy": "nest deploy",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
