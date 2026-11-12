@@ -24,6 +24,8 @@ export interface ExplainedQuery {
   collectionScan: boolean
 }
 
+type Recommendation = { _id: Types.ObjectId } & Record<string, unknown>
+
 function distinctIds(ids: Types.ObjectId[]) {
   return [...new Map(ids.map((id) => [id.toString(), id])).values()]
 }
@@ -86,17 +88,20 @@ export class RecommendationService {
     const history = await this.loadHistory(userObjectId)
     const seenCourseIds = history.map((enrollment) => enrollment.courseId)
 
-    if (seenCourseIds.length) {
-      const collaborative = await this.collaborativeForUser(userObjectId, history, limit)
-      if (collaborative.length) return collaborative
+    const selected: Recommendation[] = seenCourseIds.length ? await this.collaborativeForUser(userObjectId, history, limit) : []
+
+    if (selected.length < limit && user.interests?.length) {
+      const excluded = [...seenCourseIds, ...selected.map((item) => item._id)]
+      selected.push(...(await this.contentBasedForUser(user.interests, excluded, limit - selected.length)))
     }
 
-    if (user.interests?.length) {
-      const contentBased = await this.contentBasedForUser(user.interests, seenCourseIds, limit)
-      if (contentBased.length) return contentBased
+    if (selected.length < limit) {
+      const excluded = [...seenCourseIds, ...selected.map((item) => item._id)]
+      const strategy = seenCourseIds.length || selected.length ? 'popular_fallback' : 'popular'
+      selected.push(...(await this.popular(limit - selected.length, strategy, excluded)))
     }
 
-    return this.popular(limit, seenCourseIds.length ? 'popular_fallback' : 'popular')
+    return selected
   }
 
   /**
@@ -237,9 +242,9 @@ export class RecommendationService {
     })
   }
 
-  private async contentBasedForUser(interests: string[], seenCourseIds: Types.ObjectId[], limit: number) {
+  private async contentBasedForUser(interests: string[], excludedIds: Types.ObjectId[], limit: number) {
     const courses = await this.courses.aggregate([
-      { $match: { isActive: true, _id: { $nin: seenCourseIds }, $or: [{ category: { $in: interests } }, { tags: { $in: interests } }] } },
+      { $match: { isActive: true, _id: { $nin: excludedIds }, $or: [{ category: { $in: interests } }, { tags: { $in: interests } }] } },
       { $addFields: { interestMatch: { $size: { $setIntersection: [{ $concatArrays: [['$category'], '$tags'] }, interests] } }, popularity: { $ln: { $add: ['$enrollCount', 1] } } } },
       { $addFields: { recommendationScore: { $add: [{ $multiply: ['$interestMatch', 2] }, { $multiply: ['$ratingAvg', 0.8] }, { $multiply: ['$popularity', 0.3] }] } } },
       { $sort: { recommendationScore: -1, ratingCount: -1, _id: 1 } },
@@ -257,9 +262,9 @@ export class RecommendationService {
     }))
   }
 
-  private async popular(limit: number, strategy: 'popular' | 'popular_fallback') {
+  private async popular(limit: number, strategy: 'popular' | 'popular_fallback', excludedIds: Types.ObjectId[] = []) {
     const courses = await this.courses
-      .find({ isActive: true })
+      .find({ isActive: true, ...(excludedIds.length ? { _id: { $nin: excludedIds } } : {}) })
       .sort({ ratingAvg: -1, ratingCount: -1, enrollCount: -1, _id: 1 })
       .limit(limit)
       .select('-fullDescription -lessons')
