@@ -173,28 +173,40 @@ npm run build
 npm run perf:start
 ```
 
+`perf:start` only runs `dist/main.js`; it does **not** build the project. Run `npm run build` after every code change, otherwise the benchmark measures the previous build. (`perf:explain` and `perf:seed` build automatically.)
+
 Run the authenticated recommendation benchmark from another terminal:
 
 ```bash
-npm run perf:benchmark -- --base-url=http://localhost:3001/api --dataset=small --requests=100 --warmup=10 --concurrency=1,5,10 --limit=6 --out=.tmp/perf-results.csv
+npm run perf:benchmark -- --base-url=http://localhost:3001/api --dataset=large --variant=v2-two-step --requests=100 --warmup=10 --repeats=5 --concurrency=1,5,10 --limit=6 --out=.tmp/perf-results.csv
 ```
+
+`--variant` labels the code version (default `unspecified`) and `--repeats` (default `1`) repeats the full concurrency cycle N times after a single warm-up. The CSV columns are `timestamp,dataset,variant,run,requests,concurrency,limit,success,errors,elapsedSeconds,requestsPerSecond,p50Ms,p95Ms,maxMs`; `run` is the repeat number. If the `--out` file already exists with a different header the runner stops instead of appending. After all repeats it prints the median p50, p95 and requests/second per concurrency level.
 
 The runner logs per-concurrency p50, p95, maximum latency, throughput, and errors, then appends the measurements to a CSV file. Repeat the seed and benchmark for each scale. For fair comparisons, use the same machine, API settings, request count, concurrency levels, and warm-up procedure. Record the Node.js and MongoDB versions and whether the API and database run on the same machine.
 
-To get `executionStats` for the exact collaborative aggregation used by the recommendation service, run:
+To get `executionStats` for the exact queries used by the collaborative recommender, run:
 
 ```bash
 npm run perf:explain -- --email=perf.user.000001@example.com --out=.tmp/large-explain.json
 ```
 
-This command loads `.env.perf`, selects that user's enrollment history, runs the same aggregation pipeline with MongoDB's `explain("executionStats")`, prints a lookup summary, and saves the complete explain document as JSON. Run it after seeding the selected scale; change the output filename for each scale so earlier plans are preserved. The benchmark API does not need to be running for this command.
+This command loads `.env.perf`, runs the same queries as the recommender (history, neighbors, neighbor enrollments, candidate courses, cards) with MongoDB's `explain("executionStats")`, prints a per-query table (time, keys and documents examined, returned documents, indexes used, whether a collection scan happened) with totals, measures the wall-clock time of the real collaborative call (5 calls after 1 warm-up, median and all values), and saves the full explain output (`queries`, `totals`, `raw`) as JSON. Run it after seeding the selected scale; change the output filename for each scale so earlier plans are preserved. The benchmark API does not need to be running for this command.
 
 ### How to evaluate and optimize
 
 1. Record a baseline at each dataset size before changing indexes or the aggregation.
 2. Inspect the saved explain JSON and check the `enrollments` indexes in MongoDB Compass. The important access patterns are: finding the current user's enrollments, finding users enrolled in each seed course, and finding those users' other courses.
 3. Compare `totalKeysExamined`, `totalDocsExamined`, execution time, and whether the stages use indexes or scan whole collections. The existing enrollment indexes cover user-to-course and course-to-user lookups; add or change an index only when explain results show a useful improvement.
-4. The collaborative pipeline groups matching neighbor users before looking up their other courses. This avoids repeating the second enrollment lookup when the same user appears as a neighbor for several of the current user's courses. Compare its `neighborCourses` lookup statistics with the saved baseline.
+4. The collaborative recommender runs a fixed number of queries and scores in application code (`src/services/collaborative-scoring.ts`):
+   1. load the user's active/completed enrollments (seed courses, weight 2 for completed, 1 for active);
+   2. load the other users enrolled in any seed course (neighbors);
+   3. load the neighbors' active/completed enrollments on non-seed courses (candidates);
+   4. score in code: for every (neighbor, seed the neighbor is enrolled in, candidate enrollment) triple the contribution is `weight(seed) * weight(candidate enrollment)`; a candidate's score is the sum of contributions and its best seed is the seed with the largest partial sum (ties: smaller `_id`);
+   5. keep active courses (`courses.find` with only `_id`, `ratingAvg`, `ratingCount`), sort by score, rating, rating count, `_id`, and take `limit`;
+   6. load the full cards and the best-seed titles only for those top courses.
+
+   The previous pipeline ran a `$lookup` per neighbor (about 2 247 on `large`), which dominated its run time. Compare the per-query statistics from `perf:explain` and the benchmark CSVs of each variant (see `perf-results/README.md`). Note: `executionTimeMillisEstimate` of stages in an aggregation explain is cumulative (it includes the time of the preceding stages), so do not add stage values together.
 5. Change one thing at a time, rerun the same workload, and compare the CSV results. Report p50 and p95 alongside database execution statistics, because HTTP timing also includes application and network overhead.
 6. If the aggregation remains expensive at larger scales, evaluate precomputed item-to-item course similarities. This trades fresher results and extra write/refresh work for faster recommendation reads. Use measurements to justify whether that added complexity is needed.
 
