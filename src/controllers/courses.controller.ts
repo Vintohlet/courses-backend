@@ -25,9 +25,10 @@ export class CoursesController {
   ) {}
 
   @Get('recommendations')
+  @ApiBearerAuth()
   @ApiOperation({
     summary: 'Get personalized or popular course recommendations',
-    description: 'Authenticated users receive collaborative recommendations based on shared enrollments when history is available. Interest-based and popular-course fallbacks are used for cold-start cases. Each returned course includes a recommendation object with strategy, score, and reason.',
+    description: 'The bearer token is optional. Guests receive popular courses. Authenticated users receive a mixed list filled up to the limit: collaborative recommendations first (shared enrollments), then interest-based (content_based) courses, then popular_fallback courses. A single response can contain several strategies; each course includes a recommendation object with strategy, score, and reason.',
   })
   @ApiOkResponse({
     description: 'An array of course cards with additive recommendation metadata: strategy, score, reason, and (for collaborative results) basedOnCourse.',
@@ -62,6 +63,7 @@ export class CoursesController {
   }
 
   @Get()
+  @ApiBearerAuth()
   @UseGuards(OptionalJwtAuthGuard)
   list(@Query() query: CourseQueryDto, @Req() request: AuthenticatedRequest) {
     return this.courses.list(query, request.user?.id)
@@ -109,6 +111,7 @@ export class CoursesController {
   }
 
   @Get(':id')
+  @ApiBearerAuth()
   @UseGuards(OptionalJwtAuthGuard)
   getById(@Param('id', ParseObjectIdPipe) id: string, @Req() request: AuthenticatedRequest) {
     return this.courses.getPublic(id, request.user?.id)
