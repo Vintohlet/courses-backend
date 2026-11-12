@@ -1,12 +1,59 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectModel } from '@nestjs/mongoose'
-import { Model, PipelineStage, Types } from 'mongoose'
+import { Model, Types } from 'mongoose'
 import { Course, CourseDocument } from '../models/course.model.js'
 import { Enrollment, EnrollmentDocument, EnrollmentStatus } from '../models/enrollment.model.js'
 import { User, UserDocument } from '../models/user.model.js'
+import {
+  CandidateEnrollment,
+  CollaborativeCandidate,
+  HistoryEnrollment,
+  NeighborSeedEnrollment,
+  scoreCollaborativeCandidates,
+} from './collaborative-scoring.js'
 
 const ACTIVE_STATUSES = [EnrollmentStatus.Active, EnrollmentStatus.Completed]
-const COMPLETED_WEIGHT = 2
+
+export interface ExplainedQuery {
+  name: string
+  executionTimeMillis: number
+  totalKeysExamined: number
+  totalDocsExamined: number
+  nReturned: number
+  indexesUsed: string[]
+  collectionScan: boolean
+}
+
+function distinctIds(ids: Types.ObjectId[]) {
+  return [...new Map(ids.map((id) => [id.toString(), id])).values()]
+}
+
+function collectPlanStages(plan: unknown, stages: Record<string, unknown>[] = []) {
+  if (!plan || typeof plan !== 'object') return stages
+  const node = plan as Record<string, unknown>
+  stages.push(node)
+  collectPlanStages(node.inputStage, stages)
+  if (Array.isArray(node.inputStages)) node.inputStages.forEach((stage) => collectPlanStages(stage, stages))
+  return stages
+}
+
+function summarizeExplain(name: string, explain: unknown): ExplainedQuery {
+  const result = explain as {
+    queryPlanner?: { winningPlan?: unknown }
+    executionStats?: { executionTimeMillis?: number; totalKeysExamined?: number; totalDocsExamined?: number; nReturned?: number }
+  }
+  const stages = collectPlanStages(result.queryPlanner?.winningPlan)
+  const stats = result.executionStats ?? {}
+  return {
+    name,
+    executionTimeMillis: stats.executionTimeMillis ?? 0,
+    totalKeysExamined: stats.totalKeysExamined ?? 0,
+    totalDocsExamined: stats.totalDocsExamined ?? 0,
+    nReturned: stats.nReturned ?? 0,
+    indexesUsed: [...new Set(stages.flatMap((stage) => (typeof stage.indexName === 'string' ? [stage.indexName] : [])))],
+    collectionScan: stages.some((stage) => stage.stage === 'COLLSCAN'),
+  }
+}
 
 @Injectable()
 export class RecommendationService {
@@ -36,14 +83,11 @@ export class RecommendationService {
     const user = await this.users.findById(userObjectId).select('interests').lean()
     if (!user) throw new NotFoundException('User not found')
 
-    const history = await this.enrollments
-      .find({ userId: userObjectId, status: { $in: ACTIVE_STATUSES } })
-      .select('courseId')
-      .lean()
+    const history = await this.loadHistory(userObjectId)
     const seenCourseIds = history.map((enrollment) => enrollment.courseId)
 
     if (seenCourseIds.length) {
-      const collaborative = await this.collaborativeForUser(userObjectId, seenCourseIds, limit)
+      const collaborative = await this.collaborativeForUser(userObjectId, history, limit)
       if (collaborative.length) return collaborative
     }
 
@@ -55,148 +99,142 @@ export class RecommendationService {
     return this.popular(limit, seenCourseIds.length ? 'popular_fallback' : 'popular')
   }
 
-  async explainCollaborativeForUser(userId: string) {
+  /**
+   * Runs the same queries as the collaborative recommender with explain('executionStats').
+   * Queries that depend on earlier results are executed for real first to obtain their inputs.
+   */
+  async explainCollaborativeForUser(userId: string, limit = 6) {
     const userObjectId = new Types.ObjectId(userId)
-    const seenCourseIds = await this.enrollments
-      .find({ userId: userObjectId, status: { $in: ACTIVE_STATUSES } })
-      .distinct('courseId')
-    if (!seenCourseIds.length) throw new Error('The selected user has no active or completed enrollments to explain.')
+    limit = this.clampLimit(limit)
+    const queries: ExplainedQuery[] = []
+    const raw: unknown[] = []
+    const run = async (name: string, query: { explain: (verbosity: 'executionStats') => Promise<unknown> }) => {
+      const explain = await query.explain('executionStats')
+      raw.push({ name, explain })
+      queries.push(summarizeExplain(name, explain))
+    }
+
+    await run('history', this.historyQuery(userObjectId))
+    const history = await this.loadHistory(userObjectId)
+    if (!history.length) throw new Error('The selected user has no active or completed enrollments to explain.')
+    const seedIds = history.map((enrollment) => enrollment.courseId)
+
+    await run('neighbors', this.neighborsQuery(userObjectId, seedIds))
+    const neighbors = (await this.neighborsQuery(userObjectId, seedIds)) as NeighborSeedEnrollment[]
+    const neighborIds = distinctIds(neighbors.map((neighbor) => neighbor.userId))
+
+    await run('neighborEnrollments', this.neighborEnrollmentsQuery(neighborIds, seedIds))
+    const candidateEnrollments = (await this.neighborEnrollmentsQuery(neighborIds, seedIds)) as CandidateEnrollment[]
+    const scored = scoreCollaborativeCandidates(history, neighbors, candidateEnrollments)
+
+    await run('candidateCourses', this.candidateCoursesQuery(scored.map((candidate) => candidate.courseId)))
+    const top = await this.rankCandidates(scored, limit)
+
+    const cardIds = this.cardIds(top)
+    await run('cards', this.cardsQuery(cardIds))
+
+    const totals = queries.reduce(
+      (sum, query) => ({
+        executionTimeMillis: sum.executionTimeMillis + query.executionTimeMillis,
+        totalKeysExamined: sum.totalKeysExamined + query.totalKeysExamined,
+        totalDocsExamined: sum.totalDocsExamined + query.totalDocsExamined,
+      }),
+      { executionTimeMillis: 0, totalKeysExamined: 0, totalDocsExamined: 0 },
+    )
+    return { queries, totals, raw }
+  }
+
+  /** Collaborative recommendations only (no fallbacks); used by the performance scripts. */
+  async collaborativeRecommendationsForUser(userId: string, limit = 6) {
+    const userObjectId = new Types.ObjectId(userId)
+    const history = await this.loadHistory(userObjectId)
+    if (!history.length) return []
+    return this.collaborativeForUser(userObjectId, history, this.clampLimit(limit))
+  }
+
+  private historyQuery(userId: Types.ObjectId) {
+    return this.enrollments.find({ userId, status: { $in: ACTIVE_STATUSES } }).select('courseId status').lean()
+  }
+
+  private neighborsQuery(userId: Types.ObjectId, seedIds: Types.ObjectId[]) {
     return this.enrollments
-      .aggregate(this.collaborativePipeline(userObjectId, seenCourseIds, 6))
-      .explain('executionStats')
+      .find({ courseId: { $in: seedIds }, status: { $in: ACTIVE_STATUSES }, userId: { $ne: userId } })
+      .select('userId courseId -_id')
+      .lean()
   }
 
-  private async collaborativeForUser(userId: Types.ObjectId, seenCourseIds: Types.ObjectId[], limit: number) {
-    return this.enrollments.aggregate(this.collaborativePipeline(userId, seenCourseIds, limit))
+  private neighborEnrollmentsQuery(neighborIds: Types.ObjectId[], seedIds: Types.ObjectId[]) {
+    return this.enrollments
+      .find({ userId: { $in: neighborIds }, status: { $in: ACTIVE_STATUSES }, courseId: { $nin: seedIds } })
+      .select('userId courseId status -_id')
+      .lean()
   }
 
-  private collaborativePipeline(userId: Types.ObjectId, seenCourseIds: Types.ObjectId[], limit: number): PipelineStage[] {
-    return [
-      { $match: { userId, status: { $in: ACTIVE_STATUSES } } },
-      {
-        $set: {
-          seedWeight: { $cond: [{ $eq: ['$status', EnrollmentStatus.Completed] }, COMPLETED_WEIGHT, 1] },
-        },
-      },
-      {
-        $lookup: {
-          from: this.enrollments.collection.name,
-          let: { seedCourseId: '$courseId', currentUserId: '$userId' },
-          pipeline: [
-            {
-              $match: {
-                status: { $in: ACTIVE_STATUSES },
-                $expr: {
-                  $and: [
-                    { $eq: ['$courseId', '$$seedCourseId'] },
-                    { $ne: ['$userId', '$$currentUserId'] },
-                  ],
-                },
-              },
-            },
-            { $project: { userId: 1, status: 1 } },
-          ],
-          as: 'neighbors',
-        },
-      },
-      { $unwind: '$neighbors' },
-      {
-        $group: {
-          _id: '$neighbors.userId',
-          seedCourses: {
-            $addToSet: {
-              courseId: '$courseId',
-              weight: '$seedWeight',
-            },
+  private candidateCoursesQuery(candidateIds: Types.ObjectId[]) {
+    return this.courses.find({ _id: { $in: candidateIds }, isActive: true }).select('_id ratingAvg ratingCount').lean()
+  }
+
+  private cardsQuery(ids: Types.ObjectId[]) {
+    return this.courses.find({ _id: { $in: ids } }).select('-fullDescription -lessons').lean()
+  }
+
+  private async loadHistory(userId: Types.ObjectId) {
+    return (await this.historyQuery(userId)) as HistoryEnrollment[]
+  }
+
+  private cardIds(top: CollaborativeCandidate[]) {
+    return distinctIds([...top.map((candidate) => candidate.courseId), ...top.map((candidate) => candidate.bestSeedCourseId)])
+  }
+
+  /** Keeps only active candidate courses and returns the top `limit` ordered by score, rating, rating count, _id. */
+  private async rankCandidates(scored: CollaborativeCandidate[], limit: number) {
+    if (!scored.length) return []
+    const activeCourses = await this.candidateCoursesQuery(scored.map((candidate) => candidate.courseId))
+    const meta = new Map(activeCourses.map((course) => [course._id.toString(), course]))
+    return scored
+      .filter((candidate) => meta.has(candidate.courseId.toString()))
+      .sort((left, right) => {
+        const leftCourse = meta.get(left.courseId.toString())!
+        const rightCourse = meta.get(right.courseId.toString())!
+        if (right.score !== left.score) return right.score - left.score
+        if (rightCourse.ratingAvg !== leftCourse.ratingAvg) return rightCourse.ratingAvg - leftCourse.ratingAvg
+        if (rightCourse.ratingCount !== leftCourse.ratingCount) return rightCourse.ratingCount - leftCourse.ratingCount
+        const leftId = left.courseId.toString()
+        const rightId = right.courseId.toString()
+        return leftId < rightId ? -1 : leftId > rightId ? 1 : 0
+      })
+      .slice(0, limit)
+  }
+
+  private async collaborativeForUser(userId: Types.ObjectId, history: HistoryEnrollment[], limit: number) {
+    const seedIds = history.map((enrollment) => enrollment.courseId)
+    const neighbors = (await this.neighborsQuery(userId, seedIds)) as NeighborSeedEnrollment[]
+    if (!neighbors.length) return []
+    const neighborIds = distinctIds(neighbors.map((neighbor) => neighbor.userId))
+    const candidateEnrollments = (await this.neighborEnrollmentsQuery(neighborIds, seedIds)) as CandidateEnrollment[]
+    const scored = scoreCollaborativeCandidates(history, neighbors, candidateEnrollments)
+    const top = await this.rankCandidates(scored, limit)
+    if (!top.length) return []
+
+    const cards = await this.cardsQuery(this.cardIds(top))
+    const byId = new Map(cards.map((card) => [card._id.toString(), card]))
+
+    return top.flatMap((candidate) => {
+      const card = byId.get(candidate.courseId.toString())
+      if (!card) return []
+      const seed = byId.get(candidate.bestSeedCourseId.toString())
+      return [
+        {
+          ...card,
+          recommendation: {
+            strategy: 'collaborative',
+            score: candidate.score,
+            reason: 'Users who enrolled in this course also enrolled in the recommended course.',
+            basedOnCourse: { id: candidate.bestSeedCourseId, title: seed?.title ?? null },
           },
         },
-      },
-      {
-        $lookup: {
-          from: this.enrollments.collection.name,
-          let: { neighborUserId: '$_id' },
-          pipeline: [
-            {
-              $match: {
-                status: { $in: ACTIVE_STATUSES },
-                courseId: { $nin: seenCourseIds },
-                $expr: { $eq: ['$userId', '$$neighborUserId'] },
-              },
-            },
-            { $project: { courseId: 1, status: 1 } },
-          ],
-          as: 'neighborCourses',
-        },
-      },
-      { $unwind: '$neighborCourses' },
-      { $unwind: '$seedCourses' },
-      {
-        $set: {
-          contribution: {
-            $multiply: [
-              '$seedCourses.weight',
-              { $cond: [{ $eq: ['$neighborCourses.status', EnrollmentStatus.Completed] }, COMPLETED_WEIGHT, 1] },
-            ],
-          },
-        },
-      },
-      {
-        $group: {
-          _id: { candidateCourseId: '$neighborCourses.courseId', seedCourseId: '$seedCourses.courseId' },
-          score: { $sum: '$contribution' },
-        },
-      },
-      { $sort: { score: -1 } },
-      {
-        $group: {
-          _id: '$_id.candidateCourseId',
-          score: { $sum: '$score' },
-          bestSeedCourseId: { $first: '$_id.seedCourseId' },
-        },
-      },
-      {
-        $lookup: {
-          from: this.courses.collection.name,
-          localField: '_id',
-          foreignField: '_id',
-          pipeline: [
-            { $match: { isActive: true } },
-            { $project: { fullDescription: 0, lessons: 0 } },
-          ],
-          as: 'course',
-        },
-      },
-      { $unwind: '$course' },
-      {
-        $lookup: {
-          from: this.courses.collection.name,
-          localField: 'bestSeedCourseId',
-          foreignField: '_id',
-          pipeline: [{ $project: { title: 1 } }],
-          as: 'basedOn',
-        },
-      },
-      { $unwind: '$basedOn' },
-      { $sort: { score: -1, 'course.ratingAvg': -1, 'course.ratingCount': -1 } },
-      { $limit: limit },
-      {
-        $replaceRoot: {
-          newRoot: {
-            $mergeObjects: [
-              '$course',
-              {
-                recommendation: {
-                  strategy: 'collaborative',
-                  score: '$score',
-                  reason: 'Users who enrolled in this course also enrolled in the recommended course.',
-                  basedOnCourse: { id: '$basedOn._id', title: '$basedOn.title' },
-                },
-              },
-            ],
-          },
-        },
-      },
-    ]
+      ]
+    })
   }
 
   private async contentBasedForUser(interests: string[], seenCourseIds: Types.ObjectId[], limit: number) {
