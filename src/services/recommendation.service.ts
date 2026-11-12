@@ -24,7 +24,7 @@ export class RecommendationService {
       { $match: { isActive: true, _id: { $ne: new Types.ObjectId(courseId) }, $or: [{ category: source.category }, { tags: { $in: source.tags } }] } },
       { $addFields: { tagOverlap: { $size: { $setIntersection: ['$tags', source.tags] } }, popularity: { $ln: { $add: ['$enrollCount', 1] } } } },
       { $addFields: { recommendationScore: { $add: [{ $multiply: ['$tagOverlap', 2] }, { $multiply: ['$ratingAvg', 0.8] }, { $multiply: ['$popularity', 0.3] }] } } },
-      { $sort: { recommendationScore: -1, ratingCount: -1 } }, { $limit: limit }, { $project: { fullDescription: 0, lessons: 0 } },
+      { $sort: { recommendationScore: -1, ratingCount: -1, _id: 1 } }, { $limit: limit }, { $project: { fullDescription: 0, lessons: 0 } },
     ])
   }
 
@@ -204,7 +204,7 @@ export class RecommendationService {
       { $match: { isActive: true, _id: { $nin: seenCourseIds }, $or: [{ category: { $in: interests } }, { tags: { $in: interests } }] } },
       { $addFields: { interestMatch: { $size: { $setIntersection: [{ $concatArrays: [['$category'], '$tags'] }, interests] } }, popularity: { $ln: { $add: ['$enrollCount', 1] } } } },
       { $addFields: { recommendationScore: { $add: [{ $multiply: ['$interestMatch', 2] }, { $multiply: ['$ratingAvg', 0.8] }, { $multiply: ['$popularity', 0.3] }] } } },
-      { $sort: { recommendationScore: -1, ratingCount: -1 } },
+      { $sort: { recommendationScore: -1, ratingCount: -1, _id: 1 } },
       { $limit: limit },
       { $project: { fullDescription: 0, lessons: 0 } },
     ])
@@ -222,7 +222,7 @@ export class RecommendationService {
   private async popular(limit: number, strategy: 'popular' | 'popular_fallback') {
     const courses = await this.courses
       .find({ isActive: true })
-      .sort({ ratingAvg: -1, ratingCount: -1, enrollCount: -1 })
+      .sort({ ratingAvg: -1, ratingCount: -1, enrollCount: -1, _id: 1 })
       .limit(limit)
       .select('-fullDescription -lessons')
       .lean()
