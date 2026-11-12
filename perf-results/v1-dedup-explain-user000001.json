@@ -1,0 +1,878 @@
+{
+  "explainVersion": "1",
+  "stages": [
+    {
+      "$cursor": {
+        "queryPlanner": {
+          "namespace": "courses_perf.enrollments",
+          "parsedQuery": {
+            "$and": [
+              {
+                "userId": {
+                  "$eq": "66f100000000000000000001"
+                }
+              },
+              {
+                "status": {
+                  "$in": [
+                    "active",
+                    "completed"
+                  ]
+                }
+              }
+            ]
+          },
+          "indexFilterSet": false,
+          "planCacheShapeHash": "A0300A2F",
+          "planCacheKey": "C72F45C9",
+          "optimizationTimeMillis": 2,
+          "maxIndexedOrSolutionsReached": false,
+          "maxIndexedAndSolutionsReached": false,
+          "maxScansToExplodeReached": false,
+          "prunedSimilarIndexes": false,
+          "winningPlan": {
+            "isCached": true,
+            "stage": "PROJECTION_SIMPLE",
+            "transformBy": {
+              "courseId": 1,
+              "status": 1,
+              "userId": 1,
+              "_id": 0
+            },
+            "inputStage": {
+              "stage": "FETCH",
+              "inputStage": {
+                "stage": "IXSCAN",
+                "keyPattern": {
+                  "userId": 1,
+                  "status": 1,
+                  "enrolledAt": -1
+                },
+                "indexName": "userId_1_status_1_enrolledAt_-1",
+                "isMultiKey": false,
+                "multiKeyPaths": {
+                  "userId": [],
+                  "status": [],
+                  "enrolledAt": []
+                },
+                "isUnique": false,
+                "isSparse": false,
+                "isPartial": false,
+                "indexVersion": 2,
+                "direction": "forward",
+                "indexBounds": {
+                  "userId": [
+                    "[ObjectId('66f100000000000000000001'), ObjectId('66f100000000000000000001')]"
+                  ],
+                  "status": [
+                    "[\"active\", \"active\"]",
+                    "[\"completed\", \"completed\"]"
+                  ],
+                  "enrolledAt": [
+                    "[MaxKey, MinKey]"
+                  ]
+                }
+              }
+            }
+          },
+          "rejectedPlans": [
+            {
+              "isCached": false,
+              "stage": "PROJECTION_SIMPLE",
+              "transformBy": {
+                "courseId": 1,
+                "status": 1,
+                "userId": 1,
+                "_id": 0
+              },
+              "inputStage": {
+                "stage": "FETCH",
+                "filter": {
+                  "status": {
+                    "$in": [
+                      "active",
+                      "completed"
+                    ]
+                  }
+                },
+                "inputStage": {
+                  "stage": "IXSCAN",
+                  "keyPattern": {
+                    "userId": 1,
+                    "courseId": 1
+                  },
+                  "indexName": "userId_1_courseId_1",
+                  "isMultiKey": false,
+                  "multiKeyPaths": {
+                    "userId": [],
+                    "courseId": []
+                  },
+                  "isUnique": true,
+                  "isSparse": false,
+                  "isPartial": false,
+                  "indexVersion": 2,
+                  "direction": "forward",
+                  "indexBounds": {
+                    "userId": [
+                      "[ObjectId('66f100000000000000000001'), ObjectId('66f100000000000000000001')]"
+                    ],
+                    "courseId": [
+                      "[MinKey, MaxKey]"
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        },
+        "executionStats": {
+          "executionSuccess": true,
+          "nReturned": 20,
+          "executionTimeMillis": 2296,
+          "totalKeysExamined": 21,
+          "totalDocsExamined": 20,
+          "executionStages": {
+            "isCached": true,
+            "stage": "PROJECTION_SIMPLE",
+            "nReturned": 20,
+            "executionTimeMillisEstimate": 0,
+            "works": 22,
+            "advanced": 20,
+            "needTime": 0,
+            "needYield": 0,
+            "saveState": 1,
+            "restoreState": 1,
+            "isEOF": 1,
+            "transformBy": {
+              "courseId": 1,
+              "status": 1,
+              "userId": 1,
+              "_id": 0
+            },
+            "inputStage": {
+              "stage": "FETCH",
+              "nReturned": 20,
+              "executionTimeMillisEstimate": 0,
+              "works": 22,
+              "advanced": 20,
+              "needTime": 0,
+              "needYield": 0,
+              "saveState": 1,
+              "restoreState": 1,
+              "isEOF": 1,
+              "docsExamined": 20,
+              "alreadyHasObj": 0,
+              "inputStage": {
+                "stage": "IXSCAN",
+                "nReturned": 20,
+                "executionTimeMillisEstimate": 0,
+                "works": 21,
+                "advanced": 20,
+                "needTime": 0,
+                "needYield": 0,
+                "saveState": 1,
+                "restoreState": 1,
+                "isEOF": 1,
+                "keyPattern": {
+                  "userId": 1,
+                  "status": 1,
+                  "enrolledAt": -1
+                },
+                "indexName": "userId_1_status_1_enrolledAt_-1",
+                "isMultiKey": false,
+                "multiKeyPaths": {
+                  "userId": [],
+                  "status": [],
+                  "enrolledAt": []
+                },
+                "isUnique": false,
+                "isSparse": false,
+                "isPartial": false,
+                "indexVersion": 2,
+                "direction": "forward",
+                "indexBounds": {
+                  "userId": [
+                    "[ObjectId('66f100000000000000000001'), ObjectId('66f100000000000000000001')]"
+                  ],
+                  "status": [
+                    "[\"active\", \"active\"]",
+                    "[\"completed\", \"completed\"]"
+                  ],
+                  "enrolledAt": [
+                    "[MaxKey, MinKey]"
+                  ]
+                },
+                "keysExamined": 21,
+                "seeks": 1,
+                "dupsTested": 0,
+                "dupsDropped": 0
+              }
+            }
+          }
+        }
+      },
+      "nReturned": 20,
+      "executionTimeMillisEstimate": 1
+    },
+    {
+      "$set": {
+        "seedWeight": {
+          "$cond": [
+            {
+              "$eq": [
+                "$status",
+                {
+                  "$const": "completed"
+                }
+              ]
+            },
+            {
+              "$const": 2
+            },
+            {
+              "$const": 1
+            }
+          ]
+        }
+      },
+      "nReturned": 20,
+      "executionTimeMillisEstimate": 1
+    },
+    {
+      "$lookup": {
+        "from": "enrollments",
+        "as": "neighbors",
+        "let": {
+          "seedCourseId": "$courseId",
+          "currentUserId": "$userId"
+        },
+        "pipeline": [
+          {
+            "$match": {
+              "status": {
+                "$in": [
+                  "active",
+                  "completed"
+                ]
+              },
+              "$expr": {
+                "$and": [
+                  {
+                    "$eq": [
+                      "$courseId",
+                      "$$seedCourseId"
+                    ]
+                  },
+                  {
+                    "$ne": [
+                      "$userId",
+                      "$$currentUserId"
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "$project": {
+              "userId": 1,
+              "status": 1
+            }
+          }
+        ],
+        "unwinding": {
+          "preserveNullAndEmptyArrays": false
+        }
+      },
+      "totalDocsExamined": 4122,
+      "totalKeysExamined": 4143,
+      "collectionScans": 0,
+      "indexesUsed": [
+        "courseId_1_status_1"
+      ],
+      "nReturned": 3893,
+      "executionTimeMillisEstimate": 67
+    },
+    {
+      "$group": {
+        "_id": "$neighbors.userId",
+        "seedCourses": {
+          "$addToSet": {
+            "courseId": "$courseId",
+            "weight": "$seedWeight"
+          }
+        }
+      },
+      "maxAccumulatorMemoryUsageBytes": {
+        "seedCourses": 1231785
+      },
+      "totalOutputDataSizeBytes": 1656468,
+      "usedDisk": false,
+      "spills": 0,
+      "spilledDataStorageSize": 0,
+      "numBytesSpilledEstimate": 0,
+      "spilledRecords": 0,
+      "nReturned": 2247,
+      "executionTimeMillisEstimate": 67
+    },
+    {
+      "$lookup": {
+        "from": "enrollments",
+        "as": "neighborCourses",
+        "let": {
+          "neighborUserId": "$_id"
+        },
+        "pipeline": [
+          {
+            "$match": {
+              "status": {
+                "$in": [
+                  "active",
+                  "completed"
+                ]
+              },
+              "courseId": {
+                "$nin": [
+                  "66f200000000000000000001",
+                  "66f200000000000000000011",
+                  "66f200000000000000000019",
+                  "66f200000000000000000039",
+                  "66f200000000000000000071",
+                  "66f200000000000000000082",
+                  "66f2000000000000000000a1",
+                  "66f2000000000000000000aa",
+                  "66f2000000000000000000d2",
+                  "66f2000000000000000000e1",
+                  "66f2000000000000000000e9",
+                  "66f2000000000000000000fa",
+                  "66f20000000000000000011c",
+                  "66f20000000000000000015a",
+                  "66f200000000000000000171",
+                  "66f20000000000000000019a",
+                  "66f2000000000000000001b1",
+                  "66f2000000000000000001d2",
+                  "66f2000000000000000001e1",
+                  "66f2000000000000000001e9"
+                ]
+              },
+              "$expr": {
+                "$eq": [
+                  "$userId",
+                  "$$neighborUserId"
+                ]
+              }
+            }
+          },
+          {
+            "$project": {
+              "courseId": 1,
+              "status": 1
+            }
+          }
+        ],
+        "unwinding": {
+          "preserveNullAndEmptyArrays": false
+        }
+      },
+      "totalDocsExamined": 44960,
+      "totalKeysExamined": 47207,
+      "collectionScans": 0,
+      "indexesUsed": [
+        "userId_1_status_1_enrolledAt_-1"
+      ],
+      "nReturned": 41047,
+      "executionTimeMillisEstimate": 1968
+    },
+    {
+      "$unwind": {
+        "path": "$seedCourses"
+      },
+      "nReturned": 68933,
+      "executionTimeMillisEstimate": 1968
+    },
+    {
+      "$set": {
+        "contribution": {
+          "$multiply": [
+            "$seedCourses.weight",
+            {
+              "$cond": [
+                {
+                  "$eq": [
+                    "$neighborCourses.status",
+                    {
+                      "$const": "completed"
+                    }
+                  ]
+                },
+                {
+                  "$const": 2
+                },
+                {
+                  "$const": 1
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "nReturned": 68933,
+      "executionTimeMillisEstimate": 1970
+    },
+    {
+      "$group": {
+        "_id": {
+          "candidateCourseId": "$neighborCourses.courseId",
+          "seedCourseId": "$seedCourses.courseId"
+        },
+        "score": {
+          "$sum": "$contribution"
+        }
+      },
+      "maxAccumulatorMemoryUsageBytes": {
+        "score": 1222784
+      },
+      "totalOutputDataSizeBytes": 4680970,
+      "usedDisk": false,
+      "spills": 0,
+      "spilledDataStorageSize": 0,
+      "numBytesSpilledEstimate": 0,
+      "spilledRecords": 0,
+      "nReturned": 9553,
+      "executionTimeMillisEstimate": 1989
+    },
+    {
+      "$sort": {
+        "sortKey": {
+          "score": -1
+        }
+      },
+      "totalDataSizeSortedBytesEstimate": 4757394,
+      "usedDisk": false,
+      "spills": 0,
+      "spilledDataStorageSize": 0,
+      "nReturned": 9553,
+      "executionTimeMillisEstimate": 2004
+    },
+    {
+      "$group": {
+        "_id": "$_id.candidateCourseId",
+        "score": {
+          "$sum": "$score"
+        },
+        "bestSeedCourseId": {
+          "$first": "$_id.seedCourseId"
+        }
+      },
+      "maxAccumulatorMemoryUsageBytes": {
+        "score": 61440,
+        "bestSeedCourseId": 34560
+      },
+      "totalOutputDataSizeBytes": 132960,
+      "usedDisk": false,
+      "spills": 0,
+      "spilledDataStorageSize": 0,
+      "numBytesSpilledEstimate": 0,
+      "spilledRecords": 0,
+      "nReturned": 480,
+      "executionTimeMillisEstimate": 2004
+    },
+    {
+      "$lookup": {
+        "from": "courses",
+        "as": "course",
+        "localField": "_id",
+        "foreignField": "_id",
+        "let": {},
+        "pipeline": [
+          {
+            "$match": {
+              "isActive": true
+            }
+          },
+          {
+            "$project": {
+              "fullDescription": 0,
+              "lessons": 0
+            }
+          }
+        ],
+        "unwinding": {
+          "preserveNullAndEmptyArrays": false
+        }
+      },
+      "totalDocsExamined": 480,
+      "totalKeysExamined": 480,
+      "collectionScans": 0,
+      "indexesUsed": [
+        "_id_"
+      ],
+      "nReturned": 480,
+      "executionTimeMillisEstimate": 2154
+    },
+    {
+      "$lookup": {
+        "from": "courses",
+        "as": "basedOn",
+        "localField": "bestSeedCourseId",
+        "foreignField": "_id",
+        "let": {},
+        "pipeline": [
+          {
+            "$project": {
+              "title": 1
+            }
+          }
+        ],
+        "unwinding": {
+          "preserveNullAndEmptyArrays": false
+        }
+      },
+      "totalDocsExamined": 480,
+      "totalKeysExamined": 480,
+      "collectionScans": 0,
+      "indexesUsed": [
+        "_id_"
+      ],
+      "nReturned": 480,
+      "executionTimeMillisEstimate": 2281
+    },
+    {
+      "$sort": {
+        "sortKey": {
+          "score": -1,
+          "course.ratingAvg": -1,
+          "course.ratingCount": -1
+        },
+        "limit": 6
+      },
+      "totalDataSizeSortedBytesEstimate": 6988,
+      "usedDisk": false,
+      "spills": 0,
+      "spilledDataStorageSize": 0,
+      "nReturned": 6,
+      "executionTimeMillisEstimate": 2281
+    },
+    {
+      "$replaceRoot": {
+        "newRoot": {
+          "$mergeObjects": [
+            "$course",
+            {
+              "recommendation": {
+                "strategy": {
+                  "$const": "collaborative"
+                },
+                "score": "$score",
+                "reason": {
+                  "$const": "Users who enrolled in this course also enrolled in the recommended course."
+                },
+                "basedOnCourse": {
+                  "id": "$basedOn._id",
+                  "title": "$basedOn.title"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "nReturned": 6,
+      "executionTimeMillisEstimate": 2281
+    }
+  ],
+  "queryShapeHash": "6A28B6350840911EE5E343B944B85F9D888089635A269E78E62ECAF899B22242",
+  "serverInfo": {
+    "host": "VeloceR",
+    "port": 27017,
+    "version": "8.0.4",
+    "gitVersion": "bc35ab4305d9920d9d0491c1c9ef9b72383d31f9"
+  },
+  "serverParameters": {
+    "internalQueryFacetBufferSizeBytes": 104857600,
+    "internalQueryFacetMaxOutputDocSizeBytes": 104857600,
+    "internalLookupStageIntermediateDocumentMaxSizeBytes": 104857600,
+    "internalDocumentSourceGroupMaxMemoryBytes": 104857600,
+    "internalQueryMaxBlockingSortMemoryUsageBytes": 104857600,
+    "internalQueryProhibitBlockingMergeOnMongoS": 0,
+    "internalQueryMaxAddToSetBytes": 104857600,
+    "internalDocumentSourceSetWindowFieldsMaxMemoryBytes": 104857600,
+    "internalQueryFrameworkControl": "trySbeRestricted",
+    "internalQueryPlannerIgnoreIndexWithCollationForRegex": 1
+  },
+  "command": {
+    "aggregate": "enrollments",
+    "pipeline": [
+      {
+        "$match": {
+          "userId": "66f100000000000000000001",
+          "status": {
+            "$in": [
+              "active",
+              "completed"
+            ]
+          }
+        }
+      },
+      {
+        "$set": {
+          "seedWeight": {
+            "$cond": [
+              {
+                "$eq": [
+                  "$status",
+                  "completed"
+                ]
+              },
+              2,
+              1
+            ]
+          }
+        }
+      },
+      {
+        "$lookup": {
+          "from": "enrollments",
+          "let": {
+            "seedCourseId": "$courseId",
+            "currentUserId": "$userId"
+          },
+          "pipeline": [
+            {
+              "$match": {
+                "status": {
+                  "$in": [
+                    "active",
+                    "completed"
+                  ]
+                },
+                "$expr": {
+                  "$and": [
+                    {
+                      "$eq": [
+                        "$courseId",
+                        "$$seedCourseId"
+                      ]
+                    },
+                    {
+                      "$ne": [
+                        "$userId",
+                        "$$currentUserId"
+                      ]
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "$project": {
+                "userId": 1,
+                "status": 1
+              }
+            }
+          ],
+          "as": "neighbors"
+        }
+      },
+      {
+        "$unwind": "$neighbors"
+      },
+      {
+        "$group": {
+          "_id": "$neighbors.userId",
+          "seedCourses": {
+            "$addToSet": {
+              "courseId": "$courseId",
+              "weight": "$seedWeight"
+            }
+          }
+        }
+      },
+      {
+        "$lookup": {
+          "from": "enrollments",
+          "let": {
+            "neighborUserId": "$_id"
+          },
+          "pipeline": [
+            {
+              "$match": {
+                "status": {
+                  "$in": [
+                    "active",
+                    "completed"
+                  ]
+                },
+                "courseId": {
+                  "$nin": [
+                    "66f200000000000000000001",
+                    "66f200000000000000000011",
+                    "66f200000000000000000019",
+                    "66f200000000000000000039",
+                    "66f200000000000000000071",
+                    "66f200000000000000000082",
+                    "66f2000000000000000000a1",
+                    "66f2000000000000000000aa",
+                    "66f2000000000000000000d2",
+                    "66f2000000000000000000e1",
+                    "66f2000000000000000000e9",
+                    "66f2000000000000000000fa",
+                    "66f20000000000000000011c",
+                    "66f20000000000000000015a",
+                    "66f200000000000000000171",
+                    "66f20000000000000000019a",
+                    "66f2000000000000000001b1",
+                    "66f2000000000000000001d2",
+                    "66f2000000000000000001e1",
+                    "66f2000000000000000001e9"
+                  ]
+                },
+                "$expr": {
+                  "$eq": [
+                    "$userId",
+                    "$$neighborUserId"
+                  ]
+                }
+              }
+            },
+            {
+              "$project": {
+                "courseId": 1,
+                "status": 1
+              }
+            }
+          ],
+          "as": "neighborCourses"
+        }
+      },
+      {
+        "$unwind": "$neighborCourses"
+      },
+      {
+        "$unwind": "$seedCourses"
+      },
+      {
+        "$set": {
+          "contribution": {
+            "$multiply": [
+              "$seedCourses.weight",
+              {
+                "$cond": [
+                  {
+                    "$eq": [
+                      "$neighborCourses.status",
+                      "completed"
+                    ]
+                  },
+                  2,
+                  1
+                ]
+              }
+            ]
+          }
+        }
+      },
+      {
+        "$group": {
+          "_id": {
+            "candidateCourseId": "$neighborCourses.courseId",
+            "seedCourseId": "$seedCourses.courseId"
+          },
+          "score": {
+            "$sum": "$contribution"
+          }
+        }
+      },
+      {
+        "$sort": {
+          "score": -1
+        }
+      },
+      {
+        "$group": {
+          "_id": "$_id.candidateCourseId",
+          "score": {
+            "$sum": "$score"
+          },
+          "bestSeedCourseId": {
+            "$first": "$_id.seedCourseId"
+          }
+        }
+      },
+      {
+        "$lookup": {
+          "from": "courses",
+          "localField": "_id",
+          "foreignField": "_id",
+          "pipeline": [
+            {
+              "$match": {
+                "isActive": true
+              }
+            },
+            {
+              "$project": {
+                "fullDescription": 0,
+                "lessons": 0
+              }
+            }
+          ],
+          "as": "course"
+        }
+      },
+      {
+        "$unwind": "$course"
+      },
+      {
+        "$lookup": {
+          "from": "courses",
+          "localField": "bestSeedCourseId",
+          "foreignField": "_id",
+          "pipeline": [
+            {
+              "$project": {
+                "title": 1
+              }
+            }
+          ],
+          "as": "basedOn"
+        }
+      },
+      {
+        "$unwind": "$basedOn"
+      },
+      {
+        "$sort": {
+          "score": -1,
+          "course.ratingAvg": -1,
+          "course.ratingCount": -1
+        }
+      },
+      {
+        "$limit": 6
+      },
+      {
+        "$replaceRoot": {
+          "newRoot": {
+            "$mergeObjects": [
+              "$course",
+              {
+                "recommendation": {
+                  "strategy": "collaborative",
+                  "score": "$score",
+                  "reason": "Users who enrolled in this course also enrolled in the recommended course.",
+                  "basedOnCourse": {
+                    "id": "$basedOn._id",
+                    "title": "$basedOn.title"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "cursor": {},
+    "$db": "courses_perf"
+  },
+  "ok": 1
+}
